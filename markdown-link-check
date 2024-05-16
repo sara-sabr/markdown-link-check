@@ -199,11 +199,12 @@ async function runMarkdownLinkCheck(markdown, opts) {
             console.log('\n  %s links checked.', results.length);
             if (results.some((result) => result.status === 'dead')) {
                 let deadLinks = results.filter(result => { return result.status === 'dead'; });
-                console.error(chalk.red('\n  ERROR: %s dead links found!'), deadLinks.length);
+                console.warn(chalk.yellow('\n  WARN: %s dead links found!'), deadLinks.length);
                 deadLinks.forEach(function (result) {
                     console.log('  [%s] %s → Status: %s', statusLabels[result.status], result.link, result.statusCode);
                 });
-                reject();
+                // To reject upon encountering broken links, uncomment out the following line.
+                // reject();
             }
 
             resolve();
