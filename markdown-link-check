@@ -130,7 +130,7 @@ async function loadConfig(config) {
     });
 }
 
-async function processInput(filenameForOutput, stream, opts) {
+async function processInput(filenameForOutput, stream, opts, data) {
     let markdown = ''; // collect the markdown data, then process it
 
     stream.on('error', function(error) {
@@ -164,10 +164,10 @@ async function processInput(filenameForOutput, stream, opts) {
         opts.aliveStatusCodes = config.aliveStatusCodes;
     }
 
-    await runMarkdownLinkCheck(markdown, opts);
+    await runMarkdownLinkCheck(markdown, opts, data);
 }
 
-async function runMarkdownLinkCheck(markdown, opts) {
+async function runMarkdownLinkCheck(markdown, opts, data) {
     return new Promise((resolve, reject) => {
         markdownLinkCheck(markdown, opts, function (err, results) {
             if (err) {
@@ -202,6 +202,7 @@ async function runMarkdownLinkCheck(markdown, opts) {
                 console.warn(chalk.yellow('\n  WARN: %s dead links found!'), deadLinks.length);
                 deadLinks.forEach(function (result) {
                     console.log('  [%s] %s → Status: %s', statusLabels[result.status], result.link, result.statusCode);
+                    addBrokenLink(data, result.link);
                 });
                 // To reject upon encountering broken links, uncomment out the following line.
                 // reject();
@@ -212,18 +213,54 @@ async function runMarkdownLinkCheck(markdown, opts) {
     });
 }
 
+async function readJsonFile(filename) {
+    const rootDir = process.cwd();
+    const filePath = path.join(rootDir, filename);
+    try {
+        const data = fs.readFileSync(filePath);
+        return JSON.parse(data);
+    } catch (err) {
+        console.error(`Error reading file from ${filePath}: ${err}`);
+        return null;
+    }
+}
+
+async function writeJsonFile(filename, data) {
+    const rootDir = process.cwd();
+    const filePath = path.join(rootDir, filename);
+    try {
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 4));
+    } catch (err) {
+        console.error(`Error writing file to ${filePath}: ${err}`);
+        return null;
+    }
+}
+
+function addBrokenLink(data, link) {
+    if (link in data) {
+        data[link].latest_date = new Date().toISOString().split('T')[0];
+    } else {
+        data[link] = {
+            initial_date: new Date().toISOString().split('T')[0],
+            latest_date: new Date().toISOString().split('T')[0],
+            broken: false
+        };
+    }
+}
+
 async function main() {
     const inputs = getInputs();
+    const data = await readJsonFile('data.json');
 
     let isOk = true;
     for await (const input of inputs) {
         try {
-            await processInput(input.filenameForOutput, input.stream, input.opts);
+            await processInput(input.filenameForOutput, input.stream, input.opts, data);
+            await writeJsonFile('data.json', data);
         } catch (err) {
             isOk = false;
         }
     }
-
     process.exit(isOk ? 0 : 1);
 }
 
