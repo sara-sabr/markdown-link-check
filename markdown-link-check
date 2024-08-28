@@ -164,10 +164,10 @@ async function processInput(filenameForOutput, stream, opts, data) {
         opts.aliveStatusCodes = config.aliveStatusCodes;
     }
 
-    await runMarkdownLinkCheck(markdown, opts, data);
+    await runMarkdownLinkCheck(markdown, opts, data, filenameForOutput);
 }
 
-async function runMarkdownLinkCheck(markdown, opts, data) {
+async function runMarkdownLinkCheck(markdown, opts, data, fileLocation) {
     return new Promise((resolve, reject) => {
         markdownLinkCheck(markdown, opts, function (err, results) {
             if (err) {
@@ -202,7 +202,7 @@ async function runMarkdownLinkCheck(markdown, opts, data) {
                 console.warn(chalk.yellow('\n  WARN: %s dead links found!'), deadLinks.length);
                 deadLinks.forEach(function (result) {
                     console.log('  [%s] %s → Status: %s', statusLabels[result.status], result.link, result.statusCode);
-                    addBrokenLink(data, result.link);
+                    addBrokenLink(data, result.link, fileLocation);
                 });
                 // To reject upon encountering broken links, uncomment out the following line.
                 // reject();
@@ -236,11 +236,12 @@ async function writeJsonFile(filename, data) {
     }
 }
 
-function addBrokenLink(data, link) {
+function addBrokenLink(data, link, fileLocation) {
     if (link in data) {
         data[link].latest_date = new Date().toISOString().split('T')[0];
     } else {
         data[link] = {
+            "url_location": fileLocation,
             initial_date: new Date().toISOString().split('T')[0],
             latest_date: new Date().toISOString().split('T')[0],
             broken: false
